@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { ShoppingBag, Menu } from "lucide-react";
 import {
   Sheet,
@@ -15,14 +16,13 @@ import { useCart } from "@/components/providers/CartProvider";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { label: "Home", href: "#" },
-  { label: "Shop", href: "#featured-product" },
-  { label: "Benefits", href: "#benefits" },
-  { label: "About", href: "#about" },
-  { label: "Contact", href: "#contact" },
+  { label: "Home", href: "#", sectionId: "" },
+  { label: "Shop", href: "#featured-product", sectionId: "featured-product" },
+  { label: "Benefits", href: "#benefits", sectionId: "benefits" },
+  { label: "About", href: "#about", sectionId: "about" },
+  { label: "Contact", href: "#contact", sectionId: "contact" },
 ] as const;
 
-// Map section IDs to nav labels for IntersectionObserver
 const SECTION_IDS = [
   "featured-product",
   "benefits",
@@ -32,40 +32,37 @@ const SECTION_IDS = [
 
 export default function Navbar() {
   const { totalItems, setIsCartOpen } = useCart();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHomePage = pathname === "/";
+
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("#");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Track scroll for shadow effect
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // IntersectionObserver for active section detection
+  // IntersectionObserver for active section — only on homepage
   useEffect(() => {
-    const observers: IntersectionObserver[] = [];
+    if (!isHomePage) return;
 
-    const handleIntersect = (
-      entries: IntersectionObserverEntry[],
-      sectionId: string
-    ) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveSection(`#${sectionId}`);
-        }
-      });
-    };
+    const observers: IntersectionObserver[] = [];
 
     SECTION_IDS.forEach((sectionId) => {
       const el = document.getElementById(sectionId);
       if (el) {
         const observer = new IntersectionObserver(
-          (entries) => handleIntersect(entries, sectionId),
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) setActiveSection(`#${sectionId}`);
+            });
+          },
           { rootMargin: "-20% 0px -60% 0px", threshold: 0 }
         );
         observer.observe(el);
@@ -73,11 +70,8 @@ export default function Navbar() {
       }
     });
 
-    // Default to "Home" when at the very top
     const handleScrollTop = () => {
-      if (window.scrollY < 100) {
-        setActiveSection("#");
-      }
+      if (window.scrollY < 100) setActiveSection("#");
     };
     window.addEventListener("scroll", handleScrollTop, { passive: true });
 
@@ -85,33 +79,67 @@ export default function Navbar() {
       observers.forEach((obs) => obs.disconnect());
       window.removeEventListener("scroll", handleScrollTop);
     };
-  }, []);
+  }, [isHomePage]);
 
-  const handleSmoothScroll = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-      e.preventDefault();
-      if (href === "#") {
+  // Reset active section when leaving homepage
+  useEffect(() => {
+    if (!isHomePage) setActiveSection("");
+  }, [isHomePage]);
+
+  const scrollToSection = useCallback(
+    (sectionId: string) => {
+      const offset = 80;
+      if (sectionId === "") {
         window.scrollTo({ top: 0, behavior: "smooth" });
         setActiveSection("#");
         return;
       }
-      const id = href.replace("#", "");
-      const el = document.getElementById(id);
+      const el = document.getElementById(sectionId);
       if (el) {
-        const offset = 80; // navbar height
         const top = el.getBoundingClientRect().top + window.scrollY - offset;
         window.scrollTo({ top, behavior: "smooth" });
+        setActiveSection(`#${sectionId}`);
       }
-      setMobileMenuOpen(false);
     },
     []
   );
 
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent, sectionId: string, href: string) => {
+      e.preventDefault();
+      setMobileMenuOpen(false);
+
+      if (isHomePage) {
+        // Already on homepage — just smooth scroll
+        scrollToSection(sectionId);
+      } else {
+        // On another page — navigate to homepage then scroll to section
+        if (sectionId === "") {
+          router.push("/");
+        } else {
+          router.push(`/#${sectionId}`);
+        }
+      }
+    },
+    [isHomePage, router, scrollToSection]
+  );
+
+  // After navigating to homepage with a hash, scroll to the section
+  useEffect(() => {
+    if (!isHomePage) return;
+    const hash = window.location.hash;
+    if (hash) {
+      const sectionId = hash.replace("#", "");
+      // Small delay for page to render
+      const timer = setTimeout(() => scrollToSection(sectionId), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isHomePage, scrollToSection]);
+
+  const isLinkActive = (href: string) => isHomePage && activeSection === href;
+
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+    <header
       className={cn(
         "fixed top-0 right-0 left-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-md transition-shadow duration-300",
         scrolled && "shadow-sm shadow-foreground/5"
@@ -123,7 +151,6 @@ export default function Navbar() {
           href="/"
           className="group flex items-center gap-2 transition-opacity hover:opacity-80"
         >
-          {/* Leaf Icon */}
           <svg
             width="28"
             height="28"
@@ -165,31 +192,26 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Navigation — center */}
+        {/* Desktop Navigation */}
         <div className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
-              href={link.href}
-              onClick={(e) => handleSmoothScroll(e, link.href)}
+              href={isHomePage ? link.href : `/${link.href}`}
+              onClick={(e) => handleNavClick(e, link.sectionId, link.href)}
               className={cn(
                 "relative rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200",
-                activeSection === link.href
+                isLinkActive(link.href)
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               {link.label}
-              {/* Active indicator */}
-              {activeSection === link.href && (
+              {isLinkActive(link.href) && (
                 <motion.span
                   layoutId="activeNav"
                   className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary"
-                  transition={{
-                    type: "spring",
-                    stiffness: 380,
-                    damping: 30,
-                  }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
             </a>
@@ -211,11 +233,7 @@ export default function Navbar() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 25,
-                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
                   className="absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white"
                 >
                   {totalItems > 9 ? "9+" : totalItems}
@@ -224,7 +242,7 @@ export default function Navbar() {
             </AnimatePresence>
           </button>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <Button
               variant="ghost"
@@ -247,16 +265,10 @@ export default function Navbar() {
                 {NAV_LINKS.map((link) => (
                   <button
                     key={link.label}
-                    onClick={(e) => {
-                      handleSmoothScroll(
-                        e as unknown as React.MouseEvent<HTMLAnchorElement>,
-                        link.href
-                      );
-                      setMobileMenuOpen(false);
-                    }}
+                    onClick={(e) => handleNavClick(e, link.sectionId, link.href)}
                     className={cn(
                       "block rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                      activeSection === link.href
+                      isLinkActive(link.href)
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
@@ -265,7 +277,6 @@ export default function Navbar() {
                   </button>
                 ))}
 
-                {/* Mobile Cart Link */}
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
@@ -286,6 +297,6 @@ export default function Navbar() {
           </Sheet>
         </div>
       </nav>
-    </motion.header>
+    </header>
   );
 }

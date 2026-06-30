@@ -143,7 +143,11 @@ export default function FeaturedProduct() {
             animate={isInView ? "visible" : "hidden"}
             className="flex justify-center"
           >
-            <div className="relative group cursor-pointer">
+            <Link
+              href={`/product/${product.slug}`}
+              className="relative group cursor-pointer block"
+              aria-label={`View ${product.name} details`}
+            >
               {/* Glow behind image */}
               <div
                 className="absolute inset-4 rounded-3xl bg-primary/8 blur-2xl transition-all duration-500 group-hover:blur-3xl group-hover:bg-primary/12"
@@ -156,7 +160,7 @@ export default function FeaturedProduct() {
                 height={520}
                 className="relative w-full max-w-md h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-105 drop-shadow-xl"
               />
-            </div>
+            </Link>
           </motion.div>
 
           {/* ---------- Right: Product Info ---------- */}

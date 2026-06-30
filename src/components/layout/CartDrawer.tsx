@@ -74,8 +74,8 @@ export default function CartDrawer() {
             </Button>
           </div>
         ) : (
-          <>
-            <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4">
+          <div className="flex flex-col min-h-0 flex-1">
+            <div className="overflow-y-auto -mx-6 px-6 space-y-4 pb-4">
               {items.map((item, index) => (
                 <div
                   key={item.id}
@@ -185,7 +185,7 @@ export default function CartDrawer() {
                 </Link>
               </div>
             </div>
-          </>
+          </div>
         )}
       </SheetContent>
     </Sheet>
