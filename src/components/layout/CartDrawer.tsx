@@ -153,9 +153,9 @@ export default function CartDrawer() {
               ))}
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 text-center">
               <Separator className="mb-4" />
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-center gap-2 mb-1">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
                 <span className="text-lg font-heading font-bold">
                   ₹{totalPrice.toLocaleString("en-IN")}

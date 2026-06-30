@@ -207,13 +207,12 @@ export default function Navbar() {
               )}
             >
               {link.label}
-              {isLinkActive(link.href) && (
-                <motion.span
-                  layoutId="activeNav"
-                  className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
+              <span
+                className={cn(
+                  "absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary transition-opacity duration-150",
+                  isLinkActive(link.href) ? "opacity-100" : "opacity-0"
+                )}
+              />
             </a>
           ))}
         </div>
