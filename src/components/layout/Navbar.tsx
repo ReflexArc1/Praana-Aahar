@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -39,6 +39,9 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("#");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Suppresses IntersectionObserver during programmatic scrolls
+  const suppressObserver = useRef(false);
+  const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track scroll for shadow effect
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function Navbar() {
       if (el) {
         const observer = new IntersectionObserver(
           (entries) => {
+            if (suppressObserver.current) return;
             entries.forEach((entry) => {
               if (entry.isIntersecting) setActiveSection(`#${sectionId}`);
             });
@@ -89,16 +93,23 @@ export default function Navbar() {
   const scrollToSection = useCallback(
     (sectionId: string) => {
       const offset = 80;
+      // Suppress IntersectionObserver so it doesn't update activeSection mid-scroll
+      suppressObserver.current = true;
+      if (suppressTimer.current) clearTimeout(suppressTimer.current);
+      suppressTimer.current = setTimeout(() => {
+        suppressObserver.current = false;
+      }, 900);
+
       if (sectionId === "") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
         setActiveSection("#");
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       const el = document.getElementById(sectionId);
       if (el) {
         const top = el.getBoundingClientRect().top + window.scrollY - offset;
-        window.scrollTo({ top, behavior: "smooth" });
         setActiveSection(`#${sectionId}`);
+        window.scrollTo({ top, behavior: "smooth" });
       }
     },
     []
@@ -207,12 +218,13 @@ export default function Navbar() {
               )}
             >
               {link.label}
-              <span
-                className={cn(
-                  "absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary transition-opacity duration-150",
-                  isLinkActive(link.href) ? "opacity-100" : "opacity-0"
-                )}
-              />
+              {isLinkActive(link.href) && (
+                <motion.span
+                  layoutId="activeNav"
+                  className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </a>
           ))}
         </div>
