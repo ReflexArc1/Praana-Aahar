@@ -75,6 +75,7 @@ export default function Navbar() {
     });
 
     const handleScrollTop = () => {
+      if (suppressObserver.current) return;
       if (window.scrollY < 100) setActiveSection("#");
     };
     window.addEventListener("scroll", handleScrollTop, { passive: true });
